@@ -3,14 +3,14 @@ import java.util.Set;
 import com.google.common.collect.ImmutableSet;
 
 public class Knight extends Piece {
-  private static final MovementOption UP_TWO_RIGHT = new MovementOption(1, 2, false, false);
-  private static final MovementOption UP_TWO_LEFT = new MovementOption(-1, 2, false, false);
-  private static final MovementOption DOWN_TWO_RIGHT = new MovementOption(1, -2, false, false);
-  private static final MovementOption DOWN_TWO_LEFT = new MovementOption(-1, -2, false, false);
-  private static final MovementOption RIGHT_TWO_UP = new MovementOption(2, 1, false, false);
-  private static final MovementOption RIGHT_TWO_DOWN = new MovementOption(2, -1, false, false);
-  private static final MovementOption LEFT_TWO_UP = new MovementOption(-2, 1, false, false);
-  private static final MovementOption LEFT_TWO_DOWN = new MovementOption(-2, -1, false, false);
+  private static final MovementOption UP_TWO_RIGHT = new MovementOption(1, 2, false);
+  private static final MovementOption UP_TWO_LEFT = new MovementOption(-1, 2, false);
+  private static final MovementOption DOWN_TWO_RIGHT = new MovementOption(1, -2, false);
+  private static final MovementOption DOWN_TWO_LEFT = new MovementOption(-1, -2, false);
+  private static final MovementOption RIGHT_TWO_UP = new MovementOption(2, 1, false);
+  private static final MovementOption RIGHT_TWO_DOWN = new MovementOption(2, -1, false);
+  private static final MovementOption LEFT_TWO_UP = new MovementOption(-2, 1, false);
+  private static final MovementOption LEFT_TWO_DOWN = new MovementOption(-2, -1, false);
 
   public Knight(Color color) {
     super(color);
