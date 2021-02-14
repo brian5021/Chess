@@ -1,11 +1,11 @@
-public enum Color {
+public enum PieceColor {
   WHITE(1, 2),
   BLACK(8, 7);
 
   private final int startRow;
   private final int pawnRow;
 
-  Color(int startRow, int pawnRow) {
+  PieceColor(int startRow, int pawnRow) {
     this.startRow = startRow;
     this.pawnRow = pawnRow;
   }

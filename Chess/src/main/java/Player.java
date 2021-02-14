@@ -1,15 +1,15 @@
 public class Player {
-  private final Color color;
+  private final PieceColor pieceColor;
   private Coordinate kingPosition;
   private boolean inCheck = false;
 
-  public Player(Color color) {
-    this.color = color;
-    this.kingPosition = new Coordinate("e", color.getStartRow());
+  public Player(PieceColor pieceColor) {
+    this.pieceColor = pieceColor;
+    this.kingPosition = new Coordinate("e", pieceColor.getStartRow());
   }
 
-  public Color getColor() {
-    return color;
+  public PieceColor getColor() {
+    return pieceColor;
   }
 
   public Coordinate getKingPosition() {

@@ -1,3 +1,4 @@
+import java.awt.*;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -7,6 +8,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.swing.*;
+
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -15,18 +18,25 @@ import com.google.common.collect.ImmutableSet;
 public class Board {
   private static final Set<Integer> ROWS = ImmutableSet.of(1, 2, 3, 4, 5, 6, 7, 8);
   private static final BiMap<String, Integer> COLUMNS = ImmutableBiMap.<String, Integer>builder().put("a", 1).put("b", 2).put("c", 3).put("d", 4).put("e", 5).put("f", 6).put("g", 7).put("h", 8).build();
-  private static final Player WHITE_PLAYER = new Player(Color.WHITE);
-  private static final Player BLACK_PLAYER = new Player(Color.BLACK);
-  private static final Map<Color, Player> COLOR_TO_PLAYER = ImmutableMap.of(Color.WHITE, WHITE_PLAYER, Color.BLACK, BLACK_PLAYER);
-  private static final Map<Color, Player> COLOR_TO_OPPONENT = ImmutableMap.of(Color.WHITE, BLACK_PLAYER, Color.BLACK, WHITE_PLAYER);
+  private static final Player WHITE_PLAYER = new Player(PieceColor.WHITE);
+  private static final Player BLACK_PLAYER = new Player(PieceColor.BLACK);
+  private static final Map<PieceColor, Player> COLOR_TO_PLAYER = ImmutableMap.of(PieceColor.WHITE, WHITE_PLAYER, PieceColor.BLACK, BLACK_PLAYER);
+  private static final Map<PieceColor, Player> COLOR_TO_OPPONENT = ImmutableMap.of(PieceColor.WHITE, BLACK_PLAYER, PieceColor.BLACK, WHITE_PLAYER);
+
   private final Map<Coordinate, Piece> piecePositionMap = new HashMap<>();
-  private Color currentTurnColor = Color.WHITE;
+  private PieceColor currentTurnPieceColor = PieceColor.WHITE;
+
+  private final JPanel gui = new JPanel(new BorderLayout(3, 3));
+  private JPanel chessBoard;
+  private final JLabel message = new JLabel("Chess Champ is ready to play!");
+  private static final String COLS = "ABCDEFGH";
+
 
   public Board() {
     initializePieces();
   }
 
-  public void movePiece(Coordinate currentPosition, Coordinate targetPosition) {
+  public boolean movePiece(Coordinate currentPosition, Coordinate targetPosition) {
     Piece piece = getPieceAtCoordinate(currentPosition);
     System.out.printf("Attempting to move %s from %s to %s%n", piece.getClass().getSimpleName(), currentPosition, targetPosition);
     Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition);
@@ -44,6 +54,7 @@ public class Board {
     takenPieceMaybe.ifPresent(value -> System.out.printf("The %s piece was taken%n", value.getClass().getSimpleName()));
     System.out.println("successfully moved piece");
     endTurn();
+    return true;
   }
 
   private Optional<Piece> executePieceMove(Coordinate currentPosition, Coordinate targetPosition, Piece piece) {
@@ -51,7 +62,7 @@ public class Board {
     Optional<Piece> takenPieceMaybe = Optional.ofNullable(piecePositionMap.remove(targetPosition));
     piecePositionMap.put(targetPosition, piece);
     if (piece instanceof King) {
-      COLOR_TO_PLAYER.get(currentTurnColor).setKingPosition(targetPosition);
+      COLOR_TO_PLAYER.get(currentTurnPieceColor).setKingPosition(targetPosition);
     }
     return takenPieceMaybe;
   }
@@ -61,24 +72,24 @@ public class Board {
     piecePositionMap.put(currentPosition, piece);
     takenPieceMaybe.ifPresent(takenPiece -> piecePositionMap.put(targetPosition, takenPiece));
     if (piece instanceof King) {
-      COLOR_TO_PLAYER.get(currentTurnColor).setKingPosition(currentPosition);
+      COLOR_TO_PLAYER.get(currentTurnPieceColor).setKingPosition(currentPosition);
     }
   }
 
   private boolean moveExposesCheck() {
-    System.out.printf("Checking if move exposes check - King %s%n", COLOR_TO_PLAYER.get(currentTurnColor).getKingPosition());
-    return moveResultsInCheck(currentTurnColor);
+    System.out.printf("Checking if move exposes check - King %s%n", COLOR_TO_PLAYER.get(currentTurnPieceColor).getKingPosition());
+    return moveResultsInCheck(currentTurnPieceColor);
   }
 
   private boolean moveCausesCheck() {
-    System.out.printf("Checking if move causes check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnColor).getKingPosition());
-    return moveResultsInCheck(COLOR_TO_OPPONENT.get(currentTurnColor).getColor());
+    System.out.printf("Checking if move causes check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
+    return moveResultsInCheck(COLOR_TO_OPPONENT.get(currentTurnPieceColor).getColor());
   }
 
-  private boolean moveResultsInCheck(Color color) {
-    Coordinate kingPosition = COLOR_TO_PLAYER.get(color).getKingPosition();
+  private boolean moveResultsInCheck(PieceColor pieceColor) {
+    Coordinate kingPosition = COLOR_TO_PLAYER.get(pieceColor).getKingPosition();
     Set<Coordinate> opponentPotentialMoves = piecePositionMap.entrySet().stream()
-        .filter(entry -> entry.getValue().getColor() == COLOR_TO_OPPONENT.get(color).getColor())
+        .filter(entry -> entry.getValue().getColor() == COLOR_TO_OPPONENT.get(pieceColor).getColor())
         .map(entry -> getPotentialMoves(entry.getValue(), entry.getKey()))
         .flatMap(Collection::stream)
         .collect(Collectors.toSet());
@@ -99,10 +110,10 @@ public class Board {
         if (!potentialMoveOnBoard) {
           continue;
         }
-        if (movementOption.isRequiresTake() && (!potentialMoveOccupied || !canTake(piecePositionMap.get(potentialMove)))) {
+        if (movementOption.isRequiresTake() && (!potentialMoveOccupied || !canTake(piece, piecePositionMap.get(potentialMove)))) {
           continue;
         }
-        if (potentialMoveOccupied && canTake(piecePositionMap.get(potentialMove))) {
+        if (potentialMoveOccupied && canTake(piece, piecePositionMap.get(potentialMove))) {
           potentialMoves.add(potentialMove);
         } else if (!potentialMoveOccupied) {
           potentialMoves.add(potentialMove);
@@ -114,8 +125,8 @@ public class Board {
     return potentialMoves;
   }
 
-  private boolean canTake(Piece piece) {
-    return piece.getColor() == COLOR_TO_OPPONENT.get(currentTurnColor).getColor();
+  private boolean canTake(Piece piece, Piece pieceToTake) {
+    return piece.getColor() != pieceToTake.getColor();
   }
 
   private boolean isOnBoard(Coordinate coordinate) {
@@ -131,54 +142,54 @@ public class Board {
       throw new RuntimeException("No piece at coordinate");
     } else {
       Piece piece = piecePositionMap.get(coordinate);
-      if (piecePositionMap.get(coordinate).getColor() != currentTurnColor) {
-        throw new RuntimeException(String.format("Piece is not owned by %s", currentTurnColor));
+      if (piecePositionMap.get(coordinate).getColor() != currentTurnPieceColor) {
+        throw new RuntimeException(String.format("Piece is not owned by %s", currentTurnPieceColor));
       }
       return piece;
     }
   }
 
   private void initializePieces() {
-    for (Color color : Color.values()) {
-      //initializePawns(color);
-      initializeRooks(color);
-      initializeKnights(color);
-      initializeBishops(color);
-      initializeQueens(color);
-      initializeKings(color);
+    for (PieceColor pieceColor : PieceColor.values()) {
+      initializePawns(pieceColor);
+      initializeRooks(pieceColor);
+      initializeKnights(pieceColor);
+      initializeBishops(pieceColor);
+      initializeQueens(pieceColor);
+      initializeKings(pieceColor);
     }
   }
 
-  private void initializePawns(Color color) {
+  private void initializePawns(PieceColor pieceColor) {
     for (String column : COLUMNS.keySet()) {
-      piecePositionMap.put(new Coordinate(column, color.getPawnRow()), new Pawn(color));
+      piecePositionMap.put(new Coordinate(column, pieceColor.getPawnRow()), new Pawn(pieceColor));
     }
   }
 
-  private void initializeRooks(Color color) {
-    piecePositionMap.put(new Coordinate("a", color.getStartRow()), new Rook(color));
-    piecePositionMap.put(new Coordinate("h", color.getStartRow()), new Rook(color));
+  private void initializeRooks(PieceColor pieceColor) {
+    piecePositionMap.put(new Coordinate("a", pieceColor.getStartRow()), new Rook(pieceColor));
+    piecePositionMap.put(new Coordinate("h", pieceColor.getStartRow()), new Rook(pieceColor));
   }
 
-  private void initializeKnights(Color color) {
-    piecePositionMap.put(new Coordinate("b", color.getStartRow()), new Knight(color));
-    piecePositionMap.put(new Coordinate("g", color.getStartRow()), new Knight(color));
+  private void initializeKnights(PieceColor pieceColor) {
+    piecePositionMap.put(new Coordinate("b", pieceColor.getStartRow()), new Knight(pieceColor));
+    piecePositionMap.put(new Coordinate("g", pieceColor.getStartRow()), new Knight(pieceColor));
   }
 
-  private void initializeBishops(Color color) {
-    piecePositionMap.put(new Coordinate("c", color.getStartRow()), new Bishop(color));
-    piecePositionMap.put(new Coordinate("f", color.getStartRow()), new Bishop(color));
+  private void initializeBishops(PieceColor pieceColor) {
+    piecePositionMap.put(new Coordinate("c", pieceColor.getStartRow()), new Bishop(pieceColor));
+    piecePositionMap.put(new Coordinate("f", pieceColor.getStartRow()), new Bishop(pieceColor));
   }
 
-  private void initializeQueens(Color color) {
-    piecePositionMap.put(new Coordinate("d", color.getStartRow()), new Queen(color));
+  private void initializeQueens(PieceColor pieceColor) {
+    piecePositionMap.put(new Coordinate("d", pieceColor.getStartRow()), new Queen(pieceColor));
   }
 
-  private void initializeKings(Color color) {
-    piecePositionMap.put(new Coordinate("e", color.getStartRow()), new King(color));
+  private void initializeKings(PieceColor pieceColor) {
+    piecePositionMap.put(new Coordinate("e", pieceColor.getStartRow()), new King(pieceColor));
   }
 
   private void endTurn() {
-    currentTurnColor = currentTurnColor == Color.WHITE ? Color.BLACK : Color.WHITE;
+    currentTurnPieceColor = currentTurnPieceColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
   }
 }

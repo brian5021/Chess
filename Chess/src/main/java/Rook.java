@@ -9,8 +9,8 @@ public class Rook extends Piece {
   private static final MovementOption MOVEMENT_RIGHT = new MovementOption(1, 0, true);
   private static final Set<MovementOption> MOVEMENT_OPTIONS = ImmutableSet.of(MOVEMENT_DOWN, MOVEMENT_UP, MOVEMENT_LEFT, MOVEMENT_RIGHT);
 
-  public Rook(Color color) {
-    super(color);
+  public Rook(PieceColor pieceColor) {
+    super(pieceColor);
   }
 
   @Override

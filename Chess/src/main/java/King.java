@@ -12,8 +12,8 @@ public class King extends Piece {
   private static final MovementOption DOWN_RIGHT = new MovementOption(1, -1, false);
   private static final MovementOption DOWN_LEFT = new MovementOption(-1, -1, false);
 
-  public King(Color color) {
-    super(color);
+  public King(PieceColor pieceColor) {
+    super(pieceColor);
   }
 
   @Override

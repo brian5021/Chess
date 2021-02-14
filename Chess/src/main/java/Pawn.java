@@ -10,8 +10,8 @@ public class Pawn extends Piece {
 
   private boolean firstMove = true;
 
-  public Pawn(Color color) {
-    super(color);
+  public Pawn(PieceColor pieceColor) {
+    super(pieceColor);
   }
 
   @Override
@@ -24,7 +24,7 @@ public class Pawn extends Piece {
       firstMove = false;
       movementOptions.add(UP_TWO);
     }
-    if (color == Color.BLACK) {
+    if (pieceColor == PieceColor.BLACK) {
       return movementOptions.stream()
           .map(MovementOption::inverseDirection)
           .collect(Collectors.toSet());

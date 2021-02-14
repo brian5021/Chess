@@ -12,8 +12,8 @@ public class Knight extends Piece {
   private static final MovementOption LEFT_TWO_UP = new MovementOption(-2, 1, false);
   private static final MovementOption LEFT_TWO_DOWN = new MovementOption(-2, -1, false);
 
-  public Knight(Color color) {
-    super(color);
+  public Knight(PieceColor pieceColor) {
+    super(pieceColor);
   }
 
   @Override
