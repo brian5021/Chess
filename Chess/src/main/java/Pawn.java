@@ -8,8 +8,6 @@ public class Pawn extends Piece {
   private static final MovementOption TAKE_RIGHT = new MovementOption(1, 1, false, true);
   private static final MovementOption TAKE_LEFT = new MovementOption(-1, 1, false, true);
 
-  private boolean firstMove = true;
-
   public Pawn(PieceColor pieceColor) {
     super(pieceColor);
   }
@@ -20,8 +18,7 @@ public class Pawn extends Piece {
     movementOptions.add(UP_ONE);
     movementOptions.add(TAKE_RIGHT);
     movementOptions.add(TAKE_LEFT);
-    if (firstMove) {
-      firstMove = false;
+    if (!getHasMoved()) {
       movementOptions.add(UP_TWO);
     }
     if (pieceColor == PieceColor.BLACK) {

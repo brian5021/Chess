@@ -12,6 +12,8 @@ import javax.swing.border.LineBorder;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 
+
+// Copied from https://stackoverflow.com/questions/21142686/making-a-robust-resizable-swing-chess-gui
 public class ChessGUI {
 
   private static final BiMap<String, Integer> COLUMNS = ImmutableBiMap.<String, Integer>builder().put("a", 0).put("b", 1).put("c", 2).put("d", 3).put("e", 4).put("f", 5).put("g", 6).put("h", 7).build();

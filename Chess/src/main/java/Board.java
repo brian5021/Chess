@@ -1,19 +1,20 @@
-import java.awt.*;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.swing.*;
-
 import com.google.common.collect.BiMap;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 
 public class Board {
   private static final Set<Integer> ROWS = ImmutableSet.of(1, 2, 3, 4, 5, 6, 7, 8);
@@ -26,11 +27,6 @@ public class Board {
   private final Map<Coordinate, Piece> piecePositionMap = new HashMap<>();
   private PieceColor currentTurnPieceColor = PieceColor.WHITE;
 
-  private final JPanel gui = new JPanel(new BorderLayout(3, 3));
-  private JPanel chessBoard;
-  private final JLabel message = new JLabel("Chess Champ is ready to play!");
-  private static final String COLS = "ABCDEFGH";
-
 
   public Board() {
     initializePieces();
@@ -39,20 +35,26 @@ public class Board {
   public boolean movePiece(Coordinate currentPosition, Coordinate targetPosition) {
     Piece piece = getPieceAtCoordinate(currentPosition);
     System.out.printf("Attempting to move %s from %s to %s%n", piece.getClass().getSimpleName(), currentPosition, targetPosition);
-    Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition);
+    Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition, piecePositionMap);
     if (!potentialMoves.contains(targetPosition)) {
       throw new RuntimeException("Not valid move");
     }
     Optional<Piece> takenPieceMaybe = executePieceMove(currentPosition, targetPosition, piece);
-    if (moveExposesCheck()) {
+    if (moveExposesCheck(piecePositionMap)) {
       undoPieceMove(currentPosition, targetPosition, piece, takenPieceMaybe);
       throw new RuntimeException("Move exposes check on the king");
     }
     if (moveCausesCheck()) {
-      System.out.println("CHECK!");
+      if (moveCausesCheckMate()) {
+        System.out.println("CHECKMATE!");
+        System.exit(0);
+      } else {
+        System.out.println("CHECK!");
+      }
     }
     takenPieceMaybe.ifPresent(value -> System.out.printf("The %s piece was taken%n", value.getClass().getSimpleName()));
     System.out.println("successfully moved piece");
+    piece.setHasMoved(true);
     endTurn();
     return true;
   }
@@ -76,27 +78,50 @@ public class Board {
     }
   }
 
-  private boolean moveExposesCheck() {
+  private boolean moveExposesCheck(Map<Coordinate, Piece> currentPiecePositionMap) {
     System.out.printf("Checking if move exposes check - King %s%n", COLOR_TO_PLAYER.get(currentTurnPieceColor).getKingPosition());
-    return moveResultsInCheck(currentTurnPieceColor);
+    Player player = COLOR_TO_PLAYER.get(currentTurnPieceColor);
+    return moveResultsInCheck(player.getColor(), currentPiecePositionMap, player.getKingPosition());
   }
 
   private boolean moveCausesCheck() {
     System.out.printf("Checking if move causes check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
-    return moveResultsInCheck(COLOR_TO_OPPONENT.get(currentTurnPieceColor).getColor());
+    Player player = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
+    return moveResultsInCheck(player.getColor(), piecePositionMap, player.getKingPosition());
   }
 
-  private boolean moveResultsInCheck(PieceColor pieceColor) {
-    Coordinate kingPosition = COLOR_TO_PLAYER.get(pieceColor).getKingPosition();
-    Set<Coordinate> opponentPotentialMoves = piecePositionMap.entrySet().stream()
+  private boolean moveCausesCheckMate() {
+    System.out.printf("Checking if opponent has any move to remove check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
+    Player opponent = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
+    Multimap<Entry<Coordinate, Piece>, Coordinate> opponentPotentialMovesByPiece = piecePositionMap.entrySet().stream()
+        .filter(entry -> entry.getValue().getColor() == opponent.getColor())
+        .collect(Multimaps.flatteningToMultimap(entry -> entry,
+            entry -> getPotentialMoves(entry.getValue(), entry.getKey(), piecePositionMap).stream(),
+            HashMultimap::create));
+
+    for (Entry<Entry<Coordinate, Piece>, Coordinate> entry : opponentPotentialMovesByPiece.entries()) {
+      Map<Coordinate, Piece> potentialPiecePositionMap = new HashMap<>(piecePositionMap);
+      potentialPiecePositionMap.remove(entry.getKey().getKey());
+      potentialPiecePositionMap.remove(entry.getValue());
+      potentialPiecePositionMap.put(entry.getValue(), entry.getKey().getValue());
+      Coordinate currentKingPosition = entry.getKey().getValue() instanceof King ? entry.getValue() : opponent.getKingPosition();
+      if (!moveResultsInCheck(opponent.getColor(), potentialPiecePositionMap, currentKingPosition)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean moveResultsInCheck(PieceColor pieceColor, Map<Coordinate, Piece> currentPositionMap, Coordinate currentKingPosition) {
+    Set<Coordinate> opponentPotentialMoves = currentPositionMap.entrySet().stream()
         .filter(entry -> entry.getValue().getColor() == COLOR_TO_OPPONENT.get(pieceColor).getColor())
-        .map(entry -> getPotentialMoves(entry.getValue(), entry.getKey()))
+        .map(entry -> getPotentialMoves(entry.getValue(), entry.getKey(), currentPositionMap))
         .flatMap(Collection::stream)
         .collect(Collectors.toSet());
-    return opponentPotentialMoves.contains(kingPosition);
+    return opponentPotentialMoves.contains(currentKingPosition);
   }
 
-  private Set<Coordinate> getPotentialMoves(Piece piece, Coordinate currentPosition) {
+  private Set<Coordinate> getPotentialMoves(Piece piece, Coordinate currentPosition, Map<Coordinate, Piece> currentPiecePositionMap) {
     Set<Coordinate> potentialMoves = new HashSet<>();
     for (MovementOption movementOption : piece.getMovementOptions()) {
       Coordinate startingPosition = currentPosition;
@@ -106,14 +131,14 @@ public class Board {
       do {
         potentialMove = new Coordinate(COLUMNS.inverse().get(COLUMNS.get(startingPosition.getColumn()) + movementOption.getXMotion()), startingPosition.getRow() + movementOption.getYMotion());
         potentialMoveOnBoard = isOnBoard(potentialMove);
-        potentialMoveOccupied = isOccupied(potentialMove);
+        potentialMoveOccupied = isOccupied(potentialMove, currentPiecePositionMap);
         if (!potentialMoveOnBoard) {
           continue;
         }
-        if (movementOption.isRequiresTake() && (!potentialMoveOccupied || !canTake(piece, piecePositionMap.get(potentialMove)))) {
+        if (movementOption.isRequiresTake() && (!potentialMoveOccupied || !canTake(piece, currentPiecePositionMap.get(potentialMove)))) {
           continue;
         }
-        if (potentialMoveOccupied && canTake(piece, piecePositionMap.get(potentialMove))) {
+        if (potentialMoveOccupied && canTake(piece, currentPiecePositionMap.get(potentialMove))) {
           potentialMoves.add(potentialMove);
         } else if (!potentialMoveOccupied) {
           potentialMoves.add(potentialMove);
@@ -133,12 +158,12 @@ public class Board {
     return COLUMNS.containsKey(coordinate.getColumn()) && ROWS.contains(coordinate.getRow());
   }
 
-  private boolean isOccupied(Coordinate coordinate) {
-    return piecePositionMap.containsKey(coordinate);
+  private boolean isOccupied(Coordinate coordinate, Map<Coordinate, Piece> currentPiecePositionMap) {
+    return currentPiecePositionMap.containsKey(coordinate);
   }
 
   private Piece getPieceAtCoordinate(Coordinate coordinate) {
-    if (!isOccupied(coordinate)) {
+    if (!isOccupied(coordinate, piecePositionMap)) {
       throw new RuntimeException("No piece at coordinate");
     } else {
       Piece piece = piecePositionMap.get(coordinate);
