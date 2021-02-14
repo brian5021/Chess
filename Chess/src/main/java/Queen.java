@@ -8,7 +8,7 @@ public class Queen extends Piece {
   private static final MovementOption LEFT = new MovementOption(-1, 0, true);
   private static final MovementOption RIGHT = new MovementOption(1, 0, true);
   private static final MovementOption UP_RIGHT = new MovementOption(1, 1, true);
-  private static final MovementOption UP_LEFT = new MovementOption(-1, -1, true);
+  private static final MovementOption UP_LEFT = new MovementOption(-1, 1, true);
   private static final MovementOption DOWN_RIGHT = new MovementOption(1, -1, true);
   private static final MovementOption DOWN_LEFT = new MovementOption(-1, -1, true);
 
