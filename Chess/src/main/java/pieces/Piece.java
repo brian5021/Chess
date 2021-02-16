@@ -1,3 +1,5 @@
+package pieces;
+
 import java.util.Set;
 
 public abstract class Piece {
@@ -8,7 +10,7 @@ public abstract class Piece {
     this.pieceColor = pieceColor;
   }
 
-  abstract Set<MovementOption> getMovementOptions();
+  public abstract Set<MovementOption> getMovementOptions();
 
   public PieceColor getColor() {
     return pieceColor;

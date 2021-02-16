@@ -1,3 +1,5 @@
+package pieces;
+
 public enum PieceColor {
   WHITE(1, 2),
   BLACK(8, 7);

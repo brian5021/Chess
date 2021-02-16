@@ -1,3 +1,5 @@
+package pieces;
+
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -17,7 +19,7 @@ public class King extends Piece {
   }
 
   @Override
-  Set<MovementOption> getMovementOptions() {
+  public Set<MovementOption> getMovementOptions() {
     return ImmutableSet.of(UP, DOWN, LEFT, RIGHT, UP_LEFT, UP_RIGHT, DOWN_LEFT, DOWN_RIGHT);
   }
 }

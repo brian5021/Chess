@@ -1,3 +1,5 @@
+package pieces;
+
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -14,7 +16,7 @@ public class Rook extends Piece {
   }
 
   @Override
-  Set<MovementOption> getMovementOptions() {
+  public Set<MovementOption> getMovementOptions() {
     return MOVEMENT_OPTIONS;
   }
 

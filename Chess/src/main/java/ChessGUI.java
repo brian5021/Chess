@@ -2,6 +2,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.net.URL;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -18,7 +19,7 @@ public class ChessGUI {
 
   private static final BiMap<String, Integer> COLUMNS = ImmutableBiMap.<String, Integer>builder().put("a", 0).put("b", 1).put("c", 2).put("d", 3).put("e", 4).put("f", 5).put("g", 6).put("h", 7).build();
   private final JPanel gui = new JPanel(new BorderLayout(3, 3));
-  private final Board board = new Board();
+  private Board board = new Board();
   private JButton[][] chessBoardSquares = new JButton[8][8];
   private Image[][] chessPieceImages = new Image[2][6];
   private JPanel chessBoard;
@@ -58,7 +59,15 @@ public class ChessGUI {
     tools.add(new JButton("Save")); // TODO - add functionality!
     tools.add(new JButton("Restore")); // TODO - add functionality!
     tools.addSeparator();
-    tools.add(new JButton("Resign")); // TODO - add functionality!
+    Action restartGameAction = new AbstractAction("Restart") {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        board = new Board();
+        Arrays.stream(chessBoardSquares).flatMap(Arrays::stream).forEach(button -> button.setIcon(null));
+        setupNewGame();
+      }
+    };
+    tools.add(restartGameAction);
     tools.addSeparator();
     tools.add(message);
 
@@ -209,11 +218,21 @@ public class ChessGUI {
     }
     try {
       System.out.printf("Input %s, %s%n", firstClick, coordinate);
-      boolean success = board.movePiece(firstClick, coordinate);
-      if (success) {
+      MoveResult result = board.movePiece(firstClick, coordinate);
+      if (result.isSuccess()) {
         button.setIcon(firstClickButton.getIcon());
         firstClickButton.setIcon(null);
+        message.setText(String.format("%s at %s moved to %s", result.getPieceMoved().getClass().getSimpleName(), result.getOriginalPieceLocation(), result.getNewPieceLocation()));
+        if (result.getPieceTakenMaybe().isPresent()) {
+          message.setText(message.getText() + String.format(" | %s Taken!", result.getPieceTakenMaybe().get().getClass().getSimpleName()));
+        }
       }
+      if (result.isCheckmate()) {
+        message.setText(message.getText() + String.format(" | Checkmate - Game over! | %s wins!", result.getPieceMoved().getColor()));
+      } else if (result.isCheck()) {
+        message.setText("Check!");
+      }
+
     } catch (Exception e) {
       System.out.println(e.getMessage());
       message.setText(e.getMessage());

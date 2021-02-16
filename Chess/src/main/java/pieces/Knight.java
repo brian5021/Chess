@@ -1,3 +1,5 @@
+package pieces;
+
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -17,7 +19,7 @@ public class Knight extends Piece {
   }
 
   @Override
-  Set<MovementOption> getMovementOptions() {
+  public Set<MovementOption> getMovementOptions() {
     return ImmutableSet.of(UP_TWO_RIGHT, UP_TWO_LEFT, DOWN_TWO_RIGHT, DOWN_TWO_LEFT, RIGHT_TWO_UP, RIGHT_TWO_DOWN, LEFT_TWO_UP, LEFT_TWO_DOWN);
   }
 }

@@ -1,3 +1,5 @@
+import pieces.PieceColor;
+
 public class Player {
   private final PieceColor pieceColor;
   private Coordinate kingPosition;

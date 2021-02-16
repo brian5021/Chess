@@ -1,4 +1,4 @@
-
+package pieces;
 
 public class MovementOption {
   private final int xMotion;

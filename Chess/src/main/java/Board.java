@@ -16,6 +16,16 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
+import pieces.Bishop;
+import pieces.King;
+import pieces.Knight;
+import pieces.MovementOption;
+import pieces.Pawn;
+import pieces.Piece;
+import pieces.PieceColor;
+import pieces.Queen;
+import pieces.Rook;
+
 public class Board {
   private static final Set<Integer> ROWS = ImmutableSet.of(1, 2, 3, 4, 5, 6, 7, 8);
   private static final BiMap<String, Integer> COLUMNS = ImmutableBiMap.<String, Integer>builder().put("a", 1).put("b", 2).put("c", 3).put("d", 4).put("e", 5).put("f", 6).put("g", 7).put("h", 8).build();
@@ -32,7 +42,8 @@ public class Board {
     initializePieces();
   }
 
-  public boolean movePiece(Coordinate currentPosition, Coordinate targetPosition) {
+  public ImmutableMoveResult movePiece(Coordinate currentPosition, Coordinate targetPosition) {
+    ImmutableMoveResult.Builder moveResult = ImmutableMoveResult.builder();
     Piece piece = getPieceAtCoordinate(currentPosition);
     System.out.printf("Attempting to move %s from %s to %s%n", piece.getClass().getSimpleName(), currentPosition, targetPosition);
     Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition, piecePositionMap);
@@ -45,9 +56,10 @@ public class Board {
       throw new RuntimeException("Move exposes check on the king");
     }
     if (moveCausesCheck()) {
+      moveResult.isCheck(true);
       if (moveCausesCheckMate()) {
+        moveResult.isCheckmate(true);
         System.out.println("CHECKMATE!");
-        System.exit(0);
       } else {
         System.out.println("CHECK!");
       }
@@ -56,7 +68,13 @@ public class Board {
     System.out.println("successfully moved piece");
     piece.setHasMoved(true);
     endTurn();
-    return true;
+
+    return moveResult.pieceMoved(piece)
+        .isSuccess(true)
+        .originalPieceLocation(currentPosition)
+        .newPieceLocation(targetPosition)
+        .pieceTakenMaybe(takenPieceMaybe)
+        .build();
   }
 
   private Optional<Piece> executePieceMove(Coordinate currentPosition, Coordinate targetPosition, Piece piece) {

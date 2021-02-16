@@ -1,3 +1,5 @@
+package pieces;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -13,7 +15,7 @@ public class Pawn extends Piece {
   }
 
   @Override
-  Set<MovementOption> getMovementOptions() {
+  public Set<MovementOption> getMovementOptions() {
     Set<MovementOption> movementOptions = new HashSet<>();
     movementOptions.add(UP_ONE);
     movementOptions.add(TAKE_RIGHT);
