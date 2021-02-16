@@ -8,11 +8,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
@@ -50,7 +52,7 @@ public class Board {
     if (!potentialMoves.contains(targetPosition)) {
       throw new RuntimeException("Not valid move");
     }
-    Optional<Piece> takenPieceMaybe = executePieceMove(currentPosition, targetPosition, piece);
+    Optional<Piece> takenPieceMaybe = executePieceMove(currentPosition, targetPosition, piece, piecePositionMap);
     if (moveExposesCheck(piecePositionMap)) {
       undoPieceMove(currentPosition, targetPosition, piece, takenPieceMaybe);
       throw new RuntimeException("Move exposes check on the king");
@@ -77,10 +79,10 @@ public class Board {
         .build();
   }
 
-  private Optional<Piece> executePieceMove(Coordinate currentPosition, Coordinate targetPosition, Piece piece) {
-    piecePositionMap.remove(currentPosition);
-    Optional<Piece> takenPieceMaybe = Optional.ofNullable(piecePositionMap.remove(targetPosition));
-    piecePositionMap.put(targetPosition, piece);
+  private Optional<Piece> executePieceMove(Coordinate currentPosition, Coordinate targetPosition, Piece piece, Map<Coordinate, Piece> piecePositionMapToUpdate) {
+    piecePositionMapToUpdate.remove(currentPosition);
+    Optional<Piece> takenPieceMaybe = Optional.ofNullable(piecePositionMapToUpdate.remove(targetPosition));
+    piecePositionMapToUpdate.put(targetPosition, piece);
     if (piece instanceof King) {
       COLOR_TO_PLAYER.get(currentTurnPieceColor).setKingPosition(targetPosition);
     }
@@ -139,7 +141,8 @@ public class Board {
     return opponentPotentialMoves.contains(currentKingPosition);
   }
 
-  private Set<Coordinate> getPotentialMoves(Piece piece, Coordinate currentPosition, Map<Coordinate, Piece> currentPiecePositionMap) {
+  @VisibleForTesting
+  Set<Coordinate> getPotentialMoves(Piece piece, Coordinate currentPosition, Map<Coordinate, Piece> currentPiecePositionMap) {
     Set<Coordinate> potentialMoves = new HashSet<>();
     for (MovementOption movementOption : piece.getMovementOptions()) {
       Coordinate startingPosition = currentPosition;
@@ -164,8 +167,52 @@ public class Board {
         startingPosition = potentialMove;
       } while (movementOption.isRepeating() && !potentialMoveOccupied && potentialMoveOnBoard);
     }
+    /*
+    if (canRightCastle(currentPosition, piece, currentPiecePositionMap)) {
+      potentialMoves.add(Coordinate.from(COLUMNS.inverse().get(COLUMNS.get(currentPosition.getColumn()) + 2), currentPosition.getRow()));
+    }
+    */
+
     System.out.printf("Potential moves for piece %s [%s]: %s%n", piece.getClass().getSimpleName(), currentPosition, potentialMoves.stream().sorted(Comparator.comparing(Coordinate::toString)).collect(Collectors.toList()));
     return potentialMoves;
+  }
+
+  private boolean canRightCastle(Coordinate currentPosition, Piece piece, Map<Coordinate, Piece> currentPiecePositionMap) {
+    if (isKingAndHasNotMoved(piece)) {
+      Coordinate rightOneOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 1), currentPosition.getRow());
+      Coordinate rightTwoOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 2), currentPosition.getRow());
+      Coordinate rightThreeOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 3), currentPosition.getRow());
+
+      Optional<Piece> rightOneOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightOneOfKingCoordinate));
+      Optional<Piece> rightTwoOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightTwoOfKingCoordinate));
+      Optional<Piece> rightThreeOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightThreeOfKingCoordinate));
+      boolean piecesInCorrectSpacesForCastle = rightOneOfKingPieceMaybe.isEmpty() && rightTwoOfKingPieceMaybe.isEmpty() && rightThreeOfKingPieceMaybe.map(this::isRookAndHasNotMoved).isPresent();
+
+      if (piecesInCorrectSpacesForCastle) {
+        if (moveExposesCheck(currentPiecePositionMap)) {
+          Map<Coordinate, Piece> kingRightMovePotential = Maps.newHashMap(currentPiecePositionMap);
+          executePieceMove(currentPosition, rightOneOfKingCoordinate, piece, Maps.newHashMap(kingRightMovePotential));
+          if (moveExposesCheck(kingRightMovePotential)) {
+            kingRightMovePotential = Maps.newHashMap(currentPiecePositionMap);
+            executePieceMove(currentPosition, rightTwoOfKingCoordinate, piece, Maps.newHashMap(kingRightMovePotential));
+            return moveExposesCheck(kingRightMovePotential);
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private String incrementAndGetColumn(Coordinate coordinate, int increment) {
+    return COLUMNS.inverse().get(COLUMNS.get(coordinate.getColumn()) + increment);
+  }
+
+  private boolean isKingAndHasNotMoved(Piece piece) {
+    return piece instanceof King && !piece.getHasMoved();
+  }
+
+  private boolean isRookAndHasNotMoved(Piece piece) {
+    return piece instanceof Rook && !piece.getHasMoved();
   }
 
   private boolean canTake(Piece piece, Piece pieceToTake) {

@@ -9,8 +9,8 @@ public class Coordinate {
     this.row = row;
   }
 
-  public static Coordinate from(String column, int row) {
-    return new Coordinate(column, row);
+  public static Coordinate from(String coordinateString) {
+    return new Coordinate(coordinateString.substring(0, 1), Integer.parseInt(coordinateString.substring(1,2)));
   }
 
   public String getColumn() {
