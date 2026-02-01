@@ -390,4 +390,75 @@ public class Board {
   Coordinate getEnPassantTarget() {
     return enPassantTarget;
   }
+
+  /**
+   * Serialize the entire board state to a string.
+   * Format: one entry per line, metadata lines prefixed with key:.
+   */
+  public String serialize() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("turn:").append(currentTurnPieceColor.name()).append('\n');
+    if (enPassantTarget != null) {
+      sb.append("enpassant:").append(enPassantTarget).append('\n');
+    } else {
+      sb.append("enpassant:none").append('\n');
+    }
+    for (Map.Entry<Coordinate, Piece> entry : piecePositionMap.entrySet()) {
+      Piece piece = entry.getValue();
+      sb.append(entry.getKey())
+          .append(':').append(piece.getClass().getSimpleName())
+          .append(':').append(piece.getColor().name())
+          .append(':').append(piece.getHasMoved())
+          .append('\n');
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Deserialize a board state from a string produced by serialize().
+   */
+  public static Board deserialize(String data) {
+    Board board = new Board();
+    Map<Coordinate, Piece> pieces = new HashMap<>();
+    PieceColor turn = PieceColor.WHITE;
+    Coordinate epTarget = null;
+
+    for (String line : data.split("\n")) {
+      if (line.isEmpty()) continue;
+      if (line.startsWith("turn:")) {
+        turn = PieceColor.valueOf(line.substring(5));
+      } else if (line.startsWith("enpassant:")) {
+        String val = line.substring(10);
+        if (!val.equals("none")) {
+          epTarget = Coordinate.from(val);
+        }
+      } else {
+        String[] parts = line.split(":");
+        Coordinate coord = Coordinate.from(parts[0]);
+        String pieceType = parts[1];
+        PieceColor color = PieceColor.valueOf(parts[2]);
+        boolean hasMoved = Boolean.parseBoolean(parts[3]);
+        Piece piece = createPiece(pieceType, color);
+        piece.setHasMoved(hasMoved);
+        pieces.put(coord, piece);
+      }
+    }
+
+    board.clearAndSetPieces(pieces);
+    board.setCurrentTurn(turn);
+    board.setEnPassantTarget(epTarget);
+    return board;
+  }
+
+  private static Piece createPiece(String type, PieceColor color) {
+    switch (type) {
+      case "King": return new King(color);
+      case "Queen": return new Queen(color);
+      case "Rook": return new Rook(color);
+      case "Bishop": return new Bishop(color);
+      case "Knight": return new Knight(color);
+      case "Pawn": return new Pawn(color);
+      default: throw new IllegalArgumentException("Unknown piece type: " + type);
+    }
+  }
 }

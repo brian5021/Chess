@@ -1,7 +1,10 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 import javax.imageio.ImageIO;
@@ -9,6 +12,7 @@ import javax.swing.*;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -56,8 +60,20 @@ public class ChessGUI {
       }
     };
     tools.add(newGameAction);
-    tools.add(new JButton("Save")); // TODO - add functionality!
-    tools.add(new JButton("Restore")); // TODO - add functionality!
+    Action saveAction = new AbstractAction("Save") {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        saveGame();
+      }
+    };
+    tools.add(saveAction);
+    Action restoreAction = new AbstractAction("Restore") {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        restoreGame();
+      }
+    };
+    tools.add(restoreAction);
     tools.addSeparator();
     Action restartGameAction = new AbstractAction("Restart") {
       @Override
@@ -239,6 +255,71 @@ public class ChessGUI {
     }
     firstClick = null;
     firstClickButton = null;
+  }
+
+  private void saveGame() {
+    JFileChooser fc = new JFileChooser();
+    fc.setFileFilter(new FileNameExtensionFilter("Chess save files (*.chess)", "chess"));
+    if (fc.showSaveDialog(gui) == JFileChooser.APPROVE_OPTION) {
+      File file = fc.getSelectedFile();
+      if (!file.getName().endsWith(".chess")) {
+        file = new File(file.getAbsolutePath() + ".chess");
+      }
+      try {
+        Files.writeString(file.toPath(), board.serialize());
+        message.setText("Game saved to " + file.getName());
+      } catch (IOException ex) {
+        message.setText("Save failed: " + ex.getMessage());
+      }
+    }
+  }
+
+  private void restoreGame() {
+    JFileChooser fc = new JFileChooser();
+    fc.setFileFilter(new FileNameExtensionFilter("Chess save files (*.chess)", "chess"));
+    if (fc.showOpenDialog(gui) == JFileChooser.APPROVE_OPTION) {
+      try {
+        String data = Files.readString(fc.getSelectedFile().toPath());
+        board = Board.deserialize(data);
+        refreshBoardIcons();
+        message.setText("Game restored from " + fc.getSelectedFile().getName());
+      } catch (IOException ex) {
+        message.setText("Restore failed: " + ex.getMessage());
+      }
+    }
+  }
+
+  private void refreshBoardIcons() {
+    // Clear all squares
+    for (int col = 0; col < 8; col++) {
+      for (int row = 0; row < 8; row++) {
+        chessBoardSquares[col][row].setIcon(new ImageIcon(
+            new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB)));
+      }
+    }
+    // Place pieces from board state
+    for (String colLetter : COLUMNS.keySet()) {
+      int guiCol = COLUMNS.get(colLetter);
+      for (int boardRow = 1; boardRow <= 8; boardRow++) {
+        int guiRow = 8 - boardRow; // board row 8 = gui row 0, row 1 = gui row 7
+        pieces.Piece piece = board.getPieceAt(new Coordinate(colLetter, boardRow));
+        if (piece != null) {
+          int colorIdx = piece.getColor() == pieces.PieceColor.BLACK ? BLACK : WHITE;
+          int typeIdx = getPieceImageIndex(piece);
+          chessBoardSquares[guiCol][guiRow].setIcon(new ImageIcon(chessPieceImages[colorIdx][typeIdx]));
+        }
+      }
+    }
+  }
+
+  private static int getPieceImageIndex(pieces.Piece piece) {
+    if (piece instanceof pieces.Queen) return QUEEN;
+    if (piece instanceof pieces.King) return KING;
+    if (piece instanceof pieces.Rook) return ROOK;
+    if (piece instanceof pieces.Knight) return KNIGHT;
+    if (piece instanceof pieces.Bishop) return BISHOP;
+    if (piece instanceof pieces.Pawn) return PAWN;
+    throw new IllegalArgumentException("Unknown piece type: " + piece.getClass());
   }
 
   public static void main(String[] args) {
