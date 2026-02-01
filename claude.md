@@ -35,7 +35,7 @@ All bug fixes and new features should follow the Red-Green-Refactor cycle:
 - [x] Pawn promotion: auto-promotes to queen on back rank (3 tests)
 - [x] En passant: target tracking, capture logic, move generation (6 tests)
 - [x] Stalemate detection: draw when opponent has no legal moves but not in check (3 tests)
-- [ ] Save/Restore game: GUI buttons exist but no functionality
+- [x] Save/Restore game: serialize/deserialize board state, GUI file dialogs (7 tests)
 - [x] Debug System.out.printf statements throughout Board.java — all removed
 
 ## Build & Test
