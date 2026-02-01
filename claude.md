@@ -31,12 +31,12 @@ All bug fixes and new features should follow the Red-Green-Refactor cycle:
 ## Known Issues to Fix
 
 - [x] King.java: UP_LEFT movement is (-1, -1) but should be (-1, 1) — duplicates DOWN_LEFT
-- [ ] Castling: partially implemented, commented out, needs completion
-- [ ] Pawn promotion: not implemented
-- [ ] En passant: not implemented
-- [ ] Stalemate detection: not implemented
+- [x] Castling: rewritten canCastle() for kingside and queenside, with rook movement (11 tests)
+- [x] Pawn promotion: auto-promotes to queen on back rank (3 tests)
+- [x] En passant: target tracking, capture logic, move generation (6 tests)
+- [x] Stalemate detection: draw when opponent has no legal moves but not in check (3 tests)
 - [ ] Save/Restore game: GUI buttons exist but no functionality
-- [ ] Debug System.out.printf statements throughout Board.java
+- [x] Debug System.out.printf statements throughout Board.java — all removed
 
 ## Build & Test
 
