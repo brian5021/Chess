@@ -38,6 +38,7 @@ public class Board {
 
   private final Map<Coordinate, Piece> piecePositionMap = new HashMap<>();
   private PieceColor currentTurnPieceColor = PieceColor.WHITE;
+  private Coordinate enPassantTarget = null; // square behind a pawn that just double-moved
 
 
   public Board() {
@@ -53,6 +54,23 @@ public class Board {
       throw new RuntimeException("Not valid move");
     }
     Optional<Piece> takenPieceMaybe = executePieceMove(currentPosition, targetPosition, piece, piecePositionMap);
+
+    // En passant capture: remove the opponent's pawn that was passed
+    if (piece instanceof Pawn && targetPosition.equals(enPassantTarget)) {
+      Coordinate capturedPawnPos = new Coordinate(targetPosition.getColumn(), currentPosition.getRow());
+      Piece capturedPawn = piecePositionMap.remove(capturedPawnPos);
+      if (capturedPawn != null) {
+        takenPieceMaybe = Optional.of(capturedPawn);
+      }
+    }
+
+    // Track en passant target: if a pawn double-moves, record the square it skipped
+    if (piece instanceof Pawn && Math.abs(targetPosition.getRow() - currentPosition.getRow()) == 2) {
+      int skippedRow = (currentPosition.getRow() + targetPosition.getRow()) / 2;
+      enPassantTarget = new Coordinate(currentPosition.getColumn(), skippedRow);
+    } else {
+      enPassantTarget = null;
+    }
 
     // If this was a castling move, also move the rook
     if (piece instanceof King && Math.abs(COLUMNS.get(targetPosition.getColumn()) - COLUMNS.get(currentPosition.getColumn())) == 2) {
@@ -190,6 +208,16 @@ public class Board {
         startingPosition = potentialMove;
       } while (movementOption.isRepeating() && !potentialMoveOccupied && potentialMoveOnBoard);
     }
+    // En passant
+    if (piece instanceof Pawn && enPassantTarget != null) {
+      int colDiff = Math.abs(COLUMNS.get(enPassantTarget.getColumn()) - COLUMNS.get(currentPosition.getColumn()));
+      int expectedRow = piece.getColor() == PieceColor.WHITE ? 5 : 4; // en passant capture rank
+      if (colDiff == 1 && currentPosition.getRow() == expectedRow
+          && enPassantTarget.getRow() == (piece.getColor() == PieceColor.WHITE ? 6 : 3)) {
+        potentialMoves.add(enPassantTarget);
+      }
+    }
+
     // Castling
     if (canCastle(currentPosition, piece, currentPiecePositionMap, 1)) {
       potentialMoves.add(new Coordinate(incrementAndGetColumn(currentPosition, 2), currentPosition.getRow()));
@@ -356,5 +384,15 @@ public class Board {
   @VisibleForTesting
   void setCurrentTurn(PieceColor color) {
     currentTurnPieceColor = color;
+  }
+
+  @VisibleForTesting
+  void setEnPassantTarget(Coordinate target) {
+    enPassantTarget = target;
+  }
+
+  @VisibleForTesting
+  Coordinate getEnPassantTarget() {
+    return enPassantTarget;
   }
 }
