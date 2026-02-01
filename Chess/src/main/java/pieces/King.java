@@ -10,7 +10,7 @@ public class King extends Piece {
   private static final MovementOption LEFT = new MovementOption(-1, 0, false);
   private static final MovementOption RIGHT = new MovementOption(1, 0, false);
   private static final MovementOption UP_RIGHT = new MovementOption(1, 1, false);
-  private static final MovementOption UP_LEFT = new MovementOption(-1, -1, false);
+  private static final MovementOption UP_LEFT = new MovementOption(-1, 1, false);
   private static final MovementOption DOWN_RIGHT = new MovementOption(1, -1, false);
   private static final MovementOption DOWN_LEFT = new MovementOption(-1, -1, false);
 
