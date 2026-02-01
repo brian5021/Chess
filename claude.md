@@ -43,3 +43,37 @@ All bug fixes and new features should follow the Red-Green-Refactor cycle:
 ```bash
 cd Chess/Chess && mvn test
 ```
+
+### Remote Session (no network)
+
+When running in a remote/sandboxed session, Maven cannot resolve dependencies (no DNS/network access).
+To compile and run tests manually, use the JARs bundled with the system Gradle and Maven installations:
+
+```bash
+GUAVA=/opt/gradle-8.14.3/lib/guava-33.4.6-jre.jar
+FAILACCESS=/opt/gradle-8.14.3/lib/failureaccess-1.0.3.jar
+JUNIT=/opt/gradle-8.14.3/lib/junit-4.13.2.jar
+HAMCREST=/opt/gradle-8.14.3/lib/hamcrest-core-1.3.jar
+SRC=/home/user/Chess/Chess/src/main/java
+TEST=/home/user/Chess/Chess/src/test/java
+OUT=/home/user/Chess/Chess/build
+
+# Compile main sources (need temporary stubs for ImmutableMoveResult and org.immutables.value.Value)
+mkdir -p $OUT/classes $OUT/test-classes
+javac -cp "$GUAVA:$FAILACCESS" -d $OUT/classes <all source files>
+
+# Compile test
+javac -cp "$GUAVA:$FAILACCESS:$JUNIT:$HAMCREST:$OUT/classes" -d $OUT/test-classes $TEST/SomeTest.java
+
+# Run test
+java -cp "$GUAVA:$FAILACCESS:$JUNIT:$HAMCREST:$OUT/classes:$OUT/test-classes" org.junit.runner.JUnitCore SomeTest
+```
+
+**Required temporary stubs** (create before compiling, delete before committing):
+- `src/main/java/ImmutableMoveResult.java` — manual builder implementation of the Immutables-generated class
+- `src/main/java/org/immutables/value/Value.java` — stub annotation so `MoveResult.java` compiles
+
+**Tests must use JUnit 4 assertions** (`org.junit.Assert`) instead of AssertJ (`assertj` JAR is not available).
+Existing tests that use AssertJ won't compile in this environment — only newly written tests using plain JUnit will run.
+
+**Clean up** `$OUT`, the stubs, and any `org/` directory before committing.
