@@ -106,6 +106,9 @@ public class Board {
       } else {
         System.out.println("CHECK!");
       }
+    } else if (opponentHasNoLegalMoves()) {
+      moveResult.isStalemate(true);
+      System.out.println("STALEMATE!");
     }
     takenPieceMaybe.ifPresent(value -> System.out.printf("The %s piece was taken%n", value.getClass().getSimpleName()));
     System.out.println("successfully moved piece");
@@ -153,6 +156,10 @@ public class Board {
 
   private boolean moveCausesCheckMate() {
     System.out.printf("Checking if opponent has any move to remove check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
+    return opponentHasNoLegalMoves();
+  }
+
+  private boolean opponentHasNoLegalMoves() {
     Player opponent = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
     Multimap<Entry<Coordinate, Piece>, Coordinate> opponentPotentialMovesByPiece = piecePositionMap.entrySet().stream()
         .filter(entry -> entry.getValue().getColor() == opponent.getColor())

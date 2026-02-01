@@ -13,6 +13,8 @@ public interface MoveResult {
   default boolean isCheck() { return false; }
   @Default
   default boolean isCheckmate() { return false; }
+  @Default
+  default boolean isStalemate() { return false; }
   Optional<Piece> getPieceTakenMaybe();
   Piece getPieceMoved();
   Coordinate getOriginalPieceLocation();
