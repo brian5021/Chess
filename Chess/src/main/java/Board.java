@@ -65,6 +65,17 @@ public class Board {
       rook.setHasMoved(true);
     }
 
+    // Pawn promotion: replace pawn with queen when it reaches the back rank
+    if (piece instanceof Pawn) {
+      int promotionRank = piece.getColor() == PieceColor.WHITE ? 8 : 1;
+      if (targetPosition.getRow() == promotionRank) {
+        Queen promotedQueen = new Queen(piece.getColor());
+        promotedQueen.setHasMoved(true);
+        piecePositionMap.put(targetPosition, promotedQueen);
+        piece = promotedQueen;
+      }
+    }
+
     if (moveExposesCheck(piecePositionMap)) {
       undoPieceMove(currentPosition, targetPosition, piece, takenPieceMaybe);
       throw new RuntimeException("Move exposes check on the king");
@@ -323,5 +334,27 @@ public class Board {
 
   private void endTurn() {
     currentTurnPieceColor = currentTurnPieceColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
+  }
+
+  @VisibleForTesting
+  Piece getPieceAt(Coordinate coordinate) {
+    return piecePositionMap.get(coordinate);
+  }
+
+  @VisibleForTesting
+  void clearAndSetPieces(Map<Coordinate, Piece> pieces) {
+    piecePositionMap.clear();
+    piecePositionMap.putAll(pieces);
+    // Update king positions
+    for (Map.Entry<Coordinate, Piece> entry : pieces.entrySet()) {
+      if (entry.getValue() instanceof King) {
+        COLOR_TO_PLAYER.get(entry.getValue().getColor()).setKingPosition(entry.getKey());
+      }
+    }
+  }
+
+  @VisibleForTesting
+  void setCurrentTurn(PieceColor color) {
+    currentTurnPieceColor = color;
   }
 }
