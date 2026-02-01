@@ -1,5 +1,4 @@
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -38,6 +37,7 @@ public class Board {
 
   private final Map<Coordinate, Piece> piecePositionMap = new HashMap<>();
   private PieceColor currentTurnPieceColor = PieceColor.WHITE;
+  private Coordinate enPassantTarget = null; // square behind a pawn that just double-moved
 
 
   public Board() {
@@ -47,12 +47,51 @@ public class Board {
   public ImmutableMoveResult movePiece(Coordinate currentPosition, Coordinate targetPosition) {
     ImmutableMoveResult.Builder moveResult = ImmutableMoveResult.builder();
     Piece piece = getPieceAtCoordinate(currentPosition);
-    System.out.printf("Attempting to move %s from %s to %s%n", piece.getClass().getSimpleName(), currentPosition, targetPosition);
     Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition, piecePositionMap);
     if (!potentialMoves.contains(targetPosition)) {
       throw new RuntimeException("Not valid move");
     }
     Optional<Piece> takenPieceMaybe = executePieceMove(currentPosition, targetPosition, piece, piecePositionMap);
+
+    // En passant capture: remove the opponent's pawn that was passed
+    if (piece instanceof Pawn && targetPosition.equals(enPassantTarget)) {
+      Coordinate capturedPawnPos = new Coordinate(targetPosition.getColumn(), currentPosition.getRow());
+      Piece capturedPawn = piecePositionMap.remove(capturedPawnPos);
+      if (capturedPawn != null) {
+        takenPieceMaybe = Optional.of(capturedPawn);
+      }
+    }
+
+    // Track en passant target: if a pawn double-moves, record the square it skipped
+    if (piece instanceof Pawn && Math.abs(targetPosition.getRow() - currentPosition.getRow()) == 2) {
+      int skippedRow = (currentPosition.getRow() + targetPosition.getRow()) / 2;
+      enPassantTarget = new Coordinate(currentPosition.getColumn(), skippedRow);
+    } else {
+      enPassantTarget = null;
+    }
+
+    // If this was a castling move, also move the rook
+    if (piece instanceof King && Math.abs(COLUMNS.get(targetPosition.getColumn()) - COLUMNS.get(currentPosition.getColumn())) == 2) {
+      int direction = COLUMNS.get(targetPosition.getColumn()) > COLUMNS.get(currentPosition.getColumn()) ? 1 : -1;
+      int rookCol = direction == 1 ? 8 : 1;
+      Coordinate rookFrom = new Coordinate(COLUMNS.inverse().get(rookCol), currentPosition.getRow());
+      Coordinate rookTo = new Coordinate(incrementAndGetColumn(currentPosition, direction), currentPosition.getRow());
+      Piece rook = piecePositionMap.remove(rookFrom);
+      piecePositionMap.put(rookTo, rook);
+      rook.setHasMoved(true);
+    }
+
+    // Pawn promotion: replace pawn with queen when it reaches the back rank
+    if (piece instanceof Pawn) {
+      int promotionRank = piece.getColor() == PieceColor.WHITE ? 8 : 1;
+      if (targetPosition.getRow() == promotionRank) {
+        Queen promotedQueen = new Queen(piece.getColor());
+        promotedQueen.setHasMoved(true);
+        piecePositionMap.put(targetPosition, promotedQueen);
+        piece = promotedQueen;
+      }
+    }
+
     if (moveExposesCheck(piecePositionMap)) {
       undoPieceMove(currentPosition, targetPosition, piece, takenPieceMaybe);
       throw new RuntimeException("Move exposes check on the king");
@@ -61,13 +100,10 @@ public class Board {
       moveResult.isCheck(true);
       if (moveCausesCheckMate()) {
         moveResult.isCheckmate(true);
-        System.out.println("CHECKMATE!");
-      } else {
-        System.out.println("CHECK!");
       }
+    } else if (opponentHasNoLegalMoves()) {
+      moveResult.isStalemate(true);
     }
-    takenPieceMaybe.ifPresent(value -> System.out.printf("The %s piece was taken%n", value.getClass().getSimpleName()));
-    System.out.println("successfully moved piece");
     piece.setHasMoved(true);
     endTurn();
 
@@ -99,19 +135,20 @@ public class Board {
   }
 
   private boolean moveExposesCheck(Map<Coordinate, Piece> currentPiecePositionMap) {
-    System.out.printf("Checking if move exposes check - King %s%n", COLOR_TO_PLAYER.get(currentTurnPieceColor).getKingPosition());
     Player player = COLOR_TO_PLAYER.get(currentTurnPieceColor);
     return moveResultsInCheck(player.getColor(), currentPiecePositionMap, player.getKingPosition());
   }
 
   private boolean moveCausesCheck() {
-    System.out.printf("Checking if move causes check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
     Player player = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
     return moveResultsInCheck(player.getColor(), piecePositionMap, player.getKingPosition());
   }
 
   private boolean moveCausesCheckMate() {
-    System.out.printf("Checking if opponent has any move to remove check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
+    return opponentHasNoLegalMoves();
+  }
+
+  private boolean opponentHasNoLegalMoves() {
     Player opponent = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
     Multimap<Entry<Coordinate, Piece>, Coordinate> opponentPotentialMovesByPiece = piecePositionMap.entrySet().stream()
         .filter(entry -> entry.getValue().getColor() == opponent.getColor())
@@ -167,40 +204,79 @@ public class Board {
         startingPosition = potentialMove;
       } while (movementOption.isRepeating() && !potentialMoveOccupied && potentialMoveOnBoard);
     }
-    /*
-    if (canRightCastle(currentPosition, piece, currentPiecePositionMap)) {
-      potentialMoves.add(Coordinate.from(COLUMNS.inverse().get(COLUMNS.get(currentPosition.getColumn()) + 2), currentPosition.getRow()));
+    // En passant
+    if (piece instanceof Pawn && enPassantTarget != null) {
+      int colDiff = Math.abs(COLUMNS.get(enPassantTarget.getColumn()) - COLUMNS.get(currentPosition.getColumn()));
+      int expectedRow = piece.getColor() == PieceColor.WHITE ? 5 : 4; // en passant capture rank
+      if (colDiff == 1 && currentPosition.getRow() == expectedRow
+          && enPassantTarget.getRow() == (piece.getColor() == PieceColor.WHITE ? 6 : 3)) {
+        potentialMoves.add(enPassantTarget);
+      }
     }
-    */
 
-    System.out.printf("Potential moves for piece %s [%s]: %s%n", piece.getClass().getSimpleName(), currentPosition, potentialMoves.stream().sorted(Comparator.comparing(Coordinate::toString)).collect(Collectors.toList()));
+    // Castling
+    if (canCastle(currentPosition, piece, currentPiecePositionMap, 1)) {
+      potentialMoves.add(new Coordinate(incrementAndGetColumn(currentPosition, 2), currentPosition.getRow()));
+    }
+    if (canCastle(currentPosition, piece, currentPiecePositionMap, -1)) {
+      potentialMoves.add(new Coordinate(incrementAndGetColumn(currentPosition, -2), currentPosition.getRow()));
+    }
+
     return potentialMoves;
   }
 
-  private boolean canRightCastle(Coordinate currentPosition, Piece piece, Map<Coordinate, Piece> currentPiecePositionMap) {
-    if (isKingAndHasNotMoved(piece)) {
-      Coordinate rightOneOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 1), currentPosition.getRow());
-      Coordinate rightTwoOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 2), currentPosition.getRow());
-      Coordinate rightThreeOfKingCoordinate = new Coordinate(incrementAndGetColumn(currentPosition, 3), currentPosition.getRow());
+  /**
+   * Check if castling is legal in the given direction.
+   * @param direction 1 for kingside, -1 for queenside
+   */
+  private boolean canCastle(Coordinate kingPos, Piece piece, Map<Coordinate, Piece> positionMap, int direction) {
+    if (!isKingAndHasNotMoved(piece)) {
+      return false;
+    }
 
-      Optional<Piece> rightOneOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightOneOfKingCoordinate));
-      Optional<Piece> rightTwoOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightTwoOfKingCoordinate));
-      Optional<Piece> rightThreeOfKingPieceMaybe = Optional.ofNullable(currentPiecePositionMap.get(rightThreeOfKingCoordinate));
-      boolean piecesInCorrectSpacesForCastle = rightOneOfKingPieceMaybe.isEmpty() && rightTwoOfKingPieceMaybe.isEmpty() && rightThreeOfKingPieceMaybe.map(this::isRookAndHasNotMoved).isPresent();
+    // Find the rook position: h-file (col 8) for kingside, a-file (col 1) for queenside
+    int rookCol = direction == 1 ? 8 : 1;
+    Coordinate rookPos = new Coordinate(COLUMNS.inverse().get(rookCol), kingPos.getRow());
+    Piece rookPiece = positionMap.get(rookPos);
+    if (rookPiece == null || !isRookAndHasNotMoved(rookPiece)) {
+      return false;
+    }
 
-      if (piecesInCorrectSpacesForCastle) {
-        if (moveExposesCheck(currentPiecePositionMap)) {
-          Map<Coordinate, Piece> kingRightMovePotential = Maps.newHashMap(currentPiecePositionMap);
-          executePieceMove(currentPosition, rightOneOfKingCoordinate, piece, Maps.newHashMap(kingRightMovePotential));
-          if (moveExposesCheck(kingRightMovePotential)) {
-            kingRightMovePotential = Maps.newHashMap(currentPiecePositionMap);
-            executePieceMove(currentPosition, rightTwoOfKingCoordinate, piece, Maps.newHashMap(kingRightMovePotential));
-            return moveExposesCheck(kingRightMovePotential);
-          }
-        }
+    // Check all squares between king and rook are empty
+    int kingCol = COLUMNS.get(kingPos.getColumn());
+    int startCol = Math.min(kingCol, rookCol) + 1;
+    int endCol = Math.max(kingCol, rookCol);
+    for (int col = startCol; col < endCol; col++) {
+      Coordinate between = new Coordinate(COLUMNS.inverse().get(col), kingPos.getRow());
+      if (isOccupied(between, positionMap)) {
+        return false;
       }
     }
-    return false;
+
+    // King must not currently be in check
+    if (moveResultsInCheck(piece.getColor(), positionMap, kingPos)) {
+      return false;
+    }
+
+    // King must not pass through check (the square it crosses)
+    Coordinate throughSquare = new Coordinate(incrementAndGetColumn(kingPos, direction), kingPos.getRow());
+    Map<Coordinate, Piece> throughMap = Maps.newHashMap(positionMap);
+    throughMap.remove(kingPos);
+    throughMap.put(throughSquare, piece);
+    if (moveResultsInCheck(piece.getColor(), throughMap, throughSquare)) {
+      return false;
+    }
+
+    // King must not land in check (the destination square)
+    Coordinate destSquare = new Coordinate(incrementAndGetColumn(kingPos, 2 * direction), kingPos.getRow());
+    Map<Coordinate, Piece> destMap = Maps.newHashMap(positionMap);
+    destMap.remove(kingPos);
+    destMap.put(destSquare, piece);
+    if (moveResultsInCheck(piece.getColor(), destMap, destSquare)) {
+      return false;
+    }
+
+    return true;
   }
 
   private String incrementAndGetColumn(Coordinate coordinate, int increment) {
@@ -281,5 +357,37 @@ public class Board {
 
   private void endTurn() {
     currentTurnPieceColor = currentTurnPieceColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
+  }
+
+  @VisibleForTesting
+  Piece getPieceAt(Coordinate coordinate) {
+    return piecePositionMap.get(coordinate);
+  }
+
+  @VisibleForTesting
+  void clearAndSetPieces(Map<Coordinate, Piece> pieces) {
+    piecePositionMap.clear();
+    piecePositionMap.putAll(pieces);
+    // Update king positions
+    for (Map.Entry<Coordinate, Piece> entry : pieces.entrySet()) {
+      if (entry.getValue() instanceof King) {
+        COLOR_TO_PLAYER.get(entry.getValue().getColor()).setKingPosition(entry.getKey());
+      }
+    }
+  }
+
+  @VisibleForTesting
+  void setCurrentTurn(PieceColor color) {
+    currentTurnPieceColor = color;
+  }
+
+  @VisibleForTesting
+  void setEnPassantTarget(Coordinate target) {
+    enPassantTarget = target;
+  }
+
+  @VisibleForTesting
+  Coordinate getEnPassantTarget() {
+    return enPassantTarget;
   }
 }
