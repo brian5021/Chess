@@ -1,5 +1,4 @@
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -48,7 +47,6 @@ public class Board {
   public ImmutableMoveResult movePiece(Coordinate currentPosition, Coordinate targetPosition) {
     ImmutableMoveResult.Builder moveResult = ImmutableMoveResult.builder();
     Piece piece = getPieceAtCoordinate(currentPosition);
-    System.out.printf("Attempting to move %s from %s to %s%n", piece.getClass().getSimpleName(), currentPosition, targetPosition);
     Set<Coordinate> potentialMoves = getPotentialMoves(piece, currentPosition, piecePositionMap);
     if (!potentialMoves.contains(targetPosition)) {
       throw new RuntimeException("Not valid move");
@@ -102,16 +100,10 @@ public class Board {
       moveResult.isCheck(true);
       if (moveCausesCheckMate()) {
         moveResult.isCheckmate(true);
-        System.out.println("CHECKMATE!");
-      } else {
-        System.out.println("CHECK!");
       }
     } else if (opponentHasNoLegalMoves()) {
       moveResult.isStalemate(true);
-      System.out.println("STALEMATE!");
     }
-    takenPieceMaybe.ifPresent(value -> System.out.printf("The %s piece was taken%n", value.getClass().getSimpleName()));
-    System.out.println("successfully moved piece");
     piece.setHasMoved(true);
     endTurn();
 
@@ -143,19 +135,16 @@ public class Board {
   }
 
   private boolean moveExposesCheck(Map<Coordinate, Piece> currentPiecePositionMap) {
-    System.out.printf("Checking if move exposes check - King %s%n", COLOR_TO_PLAYER.get(currentTurnPieceColor).getKingPosition());
     Player player = COLOR_TO_PLAYER.get(currentTurnPieceColor);
     return moveResultsInCheck(player.getColor(), currentPiecePositionMap, player.getKingPosition());
   }
 
   private boolean moveCausesCheck() {
-    System.out.printf("Checking if move causes check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
     Player player = COLOR_TO_OPPONENT.get(currentTurnPieceColor);
     return moveResultsInCheck(player.getColor(), piecePositionMap, player.getKingPosition());
   }
 
   private boolean moveCausesCheckMate() {
-    System.out.printf("Checking if opponent has any move to remove check - King %s%n", COLOR_TO_OPPONENT.get(currentTurnPieceColor).getKingPosition());
     return opponentHasNoLegalMoves();
   }
 
@@ -233,7 +222,6 @@ public class Board {
       potentialMoves.add(new Coordinate(incrementAndGetColumn(currentPosition, -2), currentPosition.getRow()));
     }
 
-    System.out.printf("Potential moves for piece %s [%s]: %s%n", piece.getClass().getSimpleName(), currentPosition, potentialMoves.stream().sorted(Comparator.comparing(Coordinate::toString)).collect(Collectors.toList()));
     return potentialMoves;
   }
 
