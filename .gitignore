@@ -1,0 +1,6 @@
+# Build output
+Chess/build/
+
+# Remote session build helpers and stubs (not needed with Maven)
+Chess/build.sh
+Chess/src/main/java/org/
